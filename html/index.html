@@ -15,23 +15,28 @@
 <body>
 
     <nav class="navbar navbar-light bg-black">
-        <div class="container-fluid">
-            <a class="navbar-brand mx-auto fs-1 text-white">Gestión de Horarios</a>
+        <div class="container-fluid d-flex">
+            <a class="navbar-brand mx-auto fs-1 text-white d-flex align-items-center" style="gap: 10px;">
+                <i class="fas fa-calendar-days"></i>
+                <span>Horarios Mecánicos</span>
+                <i class="fas fa-screwdriver"></i>
+            </a>
         </div>
     </nav>
+
     <!-- Main Content -->
-    <main class="container mt-2 d-flex" style="width: 100%;">
-        <div class="container m-0 mb-3" style="width: fit-content;" id="techContainer">
+    <main class="container mt-3 d-flex" style="width: 100%;">
+        <div class="container m-0 mb-3 d-none" style="width: fit-content;" id="techContainer">
             <div class="d-flex text-center mb-3" style="justify-content: center; align-items: center;">
                 <h2 class="m-0 d-flex align-items-center">
-                    <i class="fa-solid fa-wrench" style="margin-right: 8px;"></i>Técnicos
+                    <i class="fa-solid fa-screwdriver-wrench" style="margin-right: 8px;"></i>Mecánicos
                 </h2>
                 <div style="display: flex; gap: 20px; justify-content: flex-end; width: 220px;">
                     <button class="btn btn-primary mt-1" style="width: fit-content; height: fit-content;"
                         id="addTechBtn">
                         <i class="fas fa-plus"></i>
                     </button>
-                    <button class="btn btn-dark mt-1" style="width: fit-content; height: fit-content;" id="hideBtn">
+                    <button class="btn btn-warning mt-1" style="width: fit-content; height: fit-content;" id="hideBtn">
                         <i class="fas fa-eye"></i>
                     </button>
                 </div>
@@ -41,23 +46,138 @@
             </ul>
         </div>
 
-        <div class="container-fluid m-0 border mb-3 p-0" style="width: 100%;">
+        <div class="container-fluid m-0 border mb-3 p-0 d-flex flex-column Contenedor"
+            style="width: 100%; height: calc(100% - 1rem);">
+            <!-- Encabezado -->
             <div class="d-flex align-items-center position-relative encabezado">
-                <button class="btn btn-dark position-absolute start-0 d-none" id="showBtn" style="margin-left: 1rem;">
+                <button class="btn btn-warning position-absolute start-0" id="showBtn" style="margin-left: 1rem;">
                     <i class="fas fa-eye-slash"></i>
                 </button>
-                <h2 class="mx-auto text-center">Horarios</h2>
-                <button class="btn btn-secondary position-absolute end-0" id="configBtn" style="margin-right: 1rem;">
-                    <i class="fas fa-gear"></i>
-                </button>
+                <h2 class="mx-auto text-center">Gestión de Horarios</h2>
+                <div class="d-flex" style="gap: 10px;">
+                    <button class="btn btn-primary" id="changeBtn">
+                        <i class="fas fa-pen-to-square"></i>
+                    </button>
+                    <button class="btn btn-success d-none" id="saveBtn">
+                        <i class="fas fa-floppy-disk"></i>
+                    </button>
+                    <button class="btn btn-secondary" id="configBtn">
+                        <i class="fas fa-gear"></i>
+                    </button>
+                </div>
             </div>
-            <div class="table-responsive">
-                <table class="table">
-                </table>
+
+            <div class="flex-grow-1 m-0 p-2 d-flex flex-column" style="gap: 10px;">
+                <!-- Barra superior con navegación -->
+                <div class="fs-1 d-flex justify-content-between align-items-center p-3 Contenedor"
+                    style="background-color: #f8f9fa;">
+                    <div class="d-flex" style="gap: 10px;">
+                        <button class="btn btn-dark" id="izqMes">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <button class="btn btn-info" id="buscarMes">
+                            <i class="fas fa-magnifying-glass"></i>
+                        </button>
+                    </div>
+                    <h1 id="Mes" class="m-0"></h1>
+                    <div class="d-flex" style="gap: 10px;">
+                        <button class="btn btn-info" id="hoyMes">
+                            <i class="fas fa-calendar-week"></i>
+                        </button>
+                        <button class="btn btn-dark" id="derMes">
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenedor principal con las tres secciones -->
+                <div class="d-flex flex-grow-1" style="gap: 10px;">
+                    <!-- Contenedor de Semanas -->
+                    <div class="d-flex" style="width: 25%">
+                        <div class="d-flex align-items-center Contenedor sinBDer" style="background-color: #d5d5d5;">
+                            <div class="vertical-text">Semanas</div>
+                        </div>
+                        <div class="flex-grow-1 Contenedor sinBIzq" id="Semanas">
+                            <!-- Contenido de semanas -->
+                            <div class="nuevo-bloque Contenedor"
+                                style="background-color: #e0e0e0; padding: 15px; margin: 10px; ">
+                                <div class="content-text">
+                                    <!-- Aquí puedes colocar el contenido que quieras dentro de este nuevo bloque -->
+                                    Cargando...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- Contenedor de Domingos -->
+                    <div class="d-flex" style="width: 37.5%">
+                        <div class="d-flex align-items-center Contenedor sinBDer" style="background-color: #d5d5d5;">
+                            <div class="vertical-text">Domingos</div>
+                        </div>
+                        <div class="flex-grow-1 Contenedor sinBIzq" id="Domingos">
+                            <!-- Contenido de domingos -->
+                        </div>
+                    </div>
+
+                    <!-- Contenedor de Festivos -->
+                    <div class="d-flex" style="width: 37.5%">
+                        <div class="d-flex align-items-center Contenedor sinBDer" style="background-color: #d5d5d5  ;">
+                            <div class="vertical-text">Festivos</div>
+                        </div>
+                        <div class="flex-grow-1 Contenedor sinBIzq" id="Festivos">
+                            <!-- Contenido de festivos -->
+                        </div>
+                    </div>
+                </div>
             </div>
+
+
         </div>
 
     </main>
+
+
+    <!-- Modal para Seleccionar Mes y Año -->
+    <div class="modal fade" id="selectMonthYearModal" tabindex="-1" aria-labelledby="selectMonthYearLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="selectMonthYearLabel">Seleccionar Mes y Año</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="selectMonth" class="form-label">Mes</label>
+                        <select class="form-select" id="selectMonth">
+                            <option value="01">Enero</option>
+                            <option value="02">Febrero</option>
+                            <option value="03">Marzo</option>
+                            <option value="04">Abril</option>
+                            <option value="05">Mayo</option>
+                            <option value="06">Junio</option>
+                            <option value="07">Julio</option>
+                            <option value="08">Agosto</option>
+                            <option value="09">Septiembre</option>
+                            <option value="10">Octubre</option>
+                            <option value="11">Noviembre</option>
+                            <option value="12">Diciembre</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="selectYear" class="form-label">Año</label>
+                        <input type="number" class="form-control" id="selectYear" placeholder="Ingrese el año"
+                            min="1900" max="2100">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmSelectMonthYear">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal para Confirmar Eliminación -->
     <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
@@ -77,6 +197,28 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal para Ingresar Contraseña -->
+    <div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="passwordModalLabel">Ingresa tu Contraseña</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="password" id="passwordInput" class="form-control" placeholder="Contraseña">
+                    <div id="passwordError" class="text-danger mt-2" style="display: none;">Contraseña incorrecta,
+                        intenta de nuevo.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="submitPasswordBtn">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Modal para Agregar Técnico -->
     <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">

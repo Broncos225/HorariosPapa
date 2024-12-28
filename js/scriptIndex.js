@@ -10,7 +10,11 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 const database = firebase.database(app);
 
-window.onload = mostrarPersonas;
+window.onload = () => {
+    mostrarPersonas();
+    mostrarSemanas();
+    actualizarTituloMes();
+};
 
 function mostrarPersonas() {
     const listaPersonas = document.querySelector('.list-group');
@@ -290,3 +294,223 @@ document.getElementById('showBtn').addEventListener('click', () => {
     const hideBtn = document.getElementById('showBtn');
     hideBtn.classList.toggle('d-none');
 });
+let MesActual = new Date().getMonth();
+let AñoActual = new Date().getFullYear();
+
+function actualizarTituloMes() {
+    const TituloMes = document.getElementById('Mes');
+    const nombresMeses = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    TituloMes.innerHTML = `${nombresMeses[MesActual]} - ${AñoActual}`;
+}
+
+function cambiarMes(direccion) {
+    MesActual += direccion;
+
+    if (MesActual < 0) {
+        MesActual = 11;
+        AñoActual--;
+    } else if (MesActual > 11) {
+        MesActual = 0;
+        AñoActual++;
+    }
+
+    actualizarTituloMes();
+}
+
+function calcularSemanasReales(año, mes) {
+    const primerDia = new Date(año, mes - 1, 1).getDay();
+    const ultimoDia = new Date(año, mes, 0).getDate();
+    const totalDias = ultimoDia + primerDia;
+    return Math.ceil(totalDias / 7) - 1;
+}
+function obtenerRangoDias(año, mes, semana) {
+    const primerDiaMes = new Date(año, mes - 1, 1);
+    const inicioSemana = new Date(primerDiaMes);
+
+    while (inicioSemana.getDay() !== 1) {
+        inicioSemana.setDate(inicioSemana.getDate() - 1);
+    }
+
+    inicioSemana.setDate(inicioSemana.getDate() + (semana - 1) * 7);
+
+    const finSemana = new Date(inicioSemana);
+    finSemana.setDate(finSemana.getDate() + 5);
+
+    const formatearFecha = (fecha) => {
+        return fecha.getDate();
+    };
+
+    return `${formatearFecha(inicioSemana)}-${formatearFecha(finSemana)}`;
+}
+
+async function generarSemanas() {
+    const mes = MesActual + 1;
+    const semanas = calcularSemanasReales(AñoActual, mes);
+    const semanasRef = database.ref(`Semanas/${AñoActual}/${mes}`);
+
+    const snapshot = await semanasRef.once('value');
+    const datosExistentes = snapshot.val();
+
+    if (!datosExistentes) {
+        const semanasData = {};
+        for (let semana = 1; semana <= semanas; semana++) {
+            const rangoDias = obtenerRangoDias(AñoActual, mes, semana);
+            semanasData[`Semana${semana}`] = {
+                titulo: `Semana ${semana}`,
+                rangoDias: rangoDias
+            };
+        }
+        await semanasRef.set(semanasData);
+        return true;
+    }
+    return false;
+}
+
+async function mostrarSemanas() {
+    const mes = MesActual + 1;
+    const semanasRef = database.ref(`Semanas/${AñoActual}/${mes}`);
+    const snapshot = await semanasRef.once('value');
+    const semanasContenedor = document.getElementById('Semanas');
+
+    semanasContenedor.innerHTML = '';
+    semanasContenedor.style.cssText = `
+        padding: 10px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    `;
+
+    const semanas = snapshot.val();
+    if (!semanas) {
+        semanasContenedor.innerHTML = '<p>No hay semanas disponibles.</p>';
+        return;
+    }
+
+    Object.entries(semanas).forEach(([semana, datos]) => {
+        const semanaDiv = document.createElement('div');
+        semanaDiv.classList.add('Contenedor', 'd-flex', 'justify-content-center', 'align-items-center');
+        semanaDiv.style.cssText = `
+            background-color: #e0e0e0;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+            height: 113.5px;
+        `;
+
+        const contentTextDiv = document.createElement('div');
+        contentTextDiv.classList.add('content-text');
+        contentTextDiv.innerHTML = `
+            <h3 class="contEditable">${datos.titulo}</h3>
+            <p class="m-0">Días ${datos.rangoDias}</p>
+        `;
+
+        semanaDiv.appendChild(contentTextDiv);
+        semanasContenedor.appendChild(semanaDiv);
+    });
+}
+
+// Event Listeners
+document.getElementById('Mes').addEventListener('click', async () => {
+    await generarSemanas();
+    await mostrarSemanas();
+});
+
+document.getElementById('izqMes').addEventListener('click', () => {
+    cambiarMes(-1);
+    mostrarSemanas();
+});
+
+document.getElementById('derMes').addEventListener('click', () => {
+    cambiarMes(1);
+    mostrarSemanas();
+});
+
+document.getElementById('buscarMes').addEventListener('click', function () {
+    const modal = new bootstrap.Modal(document.getElementById('selectMonthYearModal'));
+    modal.show();
+});
+
+document.getElementById('confirmSelectMonthYear').addEventListener('click', function () {
+    const month = document.getElementById('selectMonth').value;
+    const year = document.getElementById('selectYear').value;
+
+    if (month && year) {
+        console.log(`Mes seleccionado: ${month}, Año seleccionado: ${year}`);
+        MesActual = parseInt(month) - 1;
+        AñoActual = parseInt(year);
+        actualizarTituloMes();
+        mostrarSemanas();
+    } else {
+        alert('Por favor, selecciona un mes y un año.');
+    }
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('selectMonthYearModal'));
+    modal.hide();
+});
+
+document.getElementById('hoyMes').addEventListener('click', function () {
+    MesActual = new Date().getMonth();
+    AñoActual = new Date().getFullYear();
+    actualizarTituloMes();
+    mostrarSemanas();
+});
+
+document.getElementById('changeBtn').addEventListener('click', () => {
+    const save = document.getElementById('saveBtn');
+    save.classList.remove('d-none');
+    const change = document.getElementById('changeBtn');
+    change.classList.toggle('d-none');
+    editar();
+});
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+    const save = document.getElementById('saveBtn');
+    save.classList.toggle('d-none');
+    const change = document.getElementById('changeBtn');
+    change.classList.remove('d-none');
+    guardar();
+});
+
+function editar() {
+    const contEditable = document.querySelectorAll('.contEditable');
+    contEditable.forEach((cont) => {
+        cont.setAttribute('contenteditable', 'true');  // Hace el div editable
+        cont.style.border = '1px solid rgb(111 111 111)';  // Puedes agregar estilo para indicar que está editable
+    });
+}
+
+function guardar() {
+    // Muestra el modal para ingresar la contraseña
+    var passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+    passwordModal.show();
+    
+    // Maneja el evento de clic en el botón "Aceptar"
+    document.getElementById('submitPasswordBtn').addEventListener('click', function() {
+        var passwordInput = document.getElementById('passwordInput').value;
+        
+        // Aquí puedes verificar la contraseña, por ejemplo, con una contraseña estática (por razones de seguridad, no se recomienda hacerlo así en un entorno real).
+        var correctPassword = 'miContraseñaSegura'; // Reemplaza esto con la validación real
+
+        if (passwordInput === correctPassword) {
+            // Si la contraseña es correcta, proceder con el guardado
+            var contEditable = document.querySelectorAll('.contEditable');
+            contEditable.forEach(function(cont) {
+                cont.setAttribute('contenteditable', 'false');  // Hace el div no editable
+                cont.style.border = 'none';  // Quita el borde
+            });
+            
+            // Cierra el modal
+            passwordModal.hide();
+        } else {
+            // Si la contraseña es incorrecta, mostrar un mensaje de error
+            document.getElementById('passwordError').style.display = 'block';
+        }
+    });
+}
+

@@ -46,3 +46,33 @@ input[type="color"]:disabled {
     border-bottom: 1px solid #dee2e6;
     padding: 10px;
 }
+
+
+.vertical-text {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 1.25rem;
+    text-transform: uppercase;
+    color: #666;
+    padding: 0.5rem 0;
+}
+
+.Contenedor {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+}
+
+#Mes:hover {
+    cursor: pointer;
+}
+
+.sinBIzq {
+    border-left: none;
+    border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.sinBDer {
+    border-right: none;
+    border-radius: 0.25rem 0 0 0.25rem;
+}
