@@ -12,7 +12,7 @@ const database = firebase.database(app);
 
 window.onload = () => {
     mostrarPersonas();
-    mostrarSemanas();
+    mostrarRegistros();
     actualizarTituloMes();
 };
 
@@ -128,6 +128,7 @@ function mostrarPersonas() {
                     editBtn.classList.remove('d-none');
                     // Restaurar el min-width cuando volvemos al modo vista
                     buttonsContainer.style.minWidth = '40px';
+                    mostrarRegistros();
                 } catch (error) {
                     console.error("Error al actualizar:", error);
                     alert("Error al guardar los cambios");
@@ -246,6 +247,7 @@ document.getElementById('addTechBtn').addEventListener('click', () => {
 
 // Modificar la función de agregar técnico para incluir la validación final
 document.getElementById('confirmAddBtn').addEventListener('click', async () => {
+    console.log('Agregando técnico...');
     const nuevoId = document.getElementById('nuevoId').value.trim();
     const nuevoNombre = document.getElementById('nuevoNombre').value.trim();
     const nuevoColor = document.getElementById('nuevoColor').value.substring(1);
@@ -320,115 +322,226 @@ function cambiarMes(direccion) {
     actualizarTituloMes();
 }
 
-function calcularSemanasReales(año, mes) {
+function calcularNochesReales(año, mes) {
     const primerDia = new Date(año, mes - 1, 1).getDay();
     const ultimoDia = new Date(año, mes, 0).getDate();
     const totalDias = ultimoDia + primerDia;
     return Math.ceil(totalDias / 7) - 1;
 }
-function obtenerRangoDias(año, mes, semana) {
-    const primerDiaMes = new Date(año, mes - 1, 1);
-    const inicioSemana = new Date(primerDiaMes);
 
-    while (inicioSemana.getDay() !== 1) {
-        inicioSemana.setDate(inicioSemana.getDate() - 1);
+function obtenerRangoDias(año, mes, noche) {
+    const primerDiaMes = new Date(año, mes - 1, 1);
+    const inicioNoche = new Date(primerDiaMes);
+
+    while (inicioNoche.getDay() !== 1) {
+        inicioNoche.setDate(inicioNoche.getDate() - 1);
     }
 
-    inicioSemana.setDate(inicioSemana.getDate() + (semana - 1) * 7);
+    inicioNoche.setDate(inicioNoche.getDate() + (noche - 1) * 7);
 
-    const finSemana = new Date(inicioSemana);
-    finSemana.setDate(finSemana.getDate() + 5);
+    const finNoche = new Date(inicioNoche);
+    finNoche.setDate(finNoche.getDate() + 5);
 
     const formatearFecha = (fecha) => {
         return fecha.getDate();
     };
 
-    return `${formatearFecha(inicioSemana)}-${formatearFecha(finSemana)}`;
+    return `${formatearFecha(inicioNoche)}-${formatearFecha(finNoche)}`;
 }
 
-async function generarSemanas() {
+async function generarNoches() {
     const mes = MesActual + 1;
-    const semanas = calcularSemanasReales(AñoActual, mes);
-    const semanasRef = database.ref(`Semanas/${AñoActual}/${mes}`);
+    const noches = calcularNochesReales(AñoActual, mes);
+    const nochesRef = database.ref(`Registros/${AñoActual}/${mes}/Noches`);
 
-    const snapshot = await semanasRef.once('value');
+    const snapshot = await nochesRef.once('value');
     const datosExistentes = snapshot.val();
 
     if (!datosExistentes) {
-        const semanasData = {};
-        for (let semana = 1; semana <= semanas; semana++) {
-            const rangoDias = obtenerRangoDias(AñoActual, mes, semana);
-            semanasData[`Semana${semana}`] = {
-                titulo: `Semana ${semana}`,
-                rangoDias: rangoDias
+        const nochesData = {};
+        for (let noche = 1; noche <= noches; noche++) {
+            nochesData[`Noche${noche}`] = {
+                titulo: `Técnico`
             };
         }
-        await semanasRef.set(semanasData);
+        await nochesRef.set(nochesData);
         return true;
     }
     return false;
 }
 
-async function mostrarSemanas() {
-    const mes = MesActual + 1;
-    const semanasRef = database.ref(`Semanas/${AñoActual}/${mes}`);
-    const snapshot = await semanasRef.once('value');
-    const semanasContenedor = document.getElementById('Semanas');
 
-    semanasContenedor.innerHTML = '';
-    semanasContenedor.style.cssText = `
+async function mostrarNoches() {
+    const mes = MesActual + 1;
+    const nochesRef = database.ref(`Registros/${AñoActual}/${mes}/Noches`);
+    const snapshot = await nochesRef.once('value');
+    const nochesContenedor = document.getElementById('Noches');
+
+    nochesContenedor.innerHTML = '';
+    nochesContenedor.style.cssText = `
         padding: 10px;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
         gap: 10px;
+        border: none;
+        padding-top: 0;
     `;
 
-    const semanas = snapshot.val();
-    if (!semanas) {
-        semanasContenedor.innerHTML = '<p>No hay semanas disponibles.</p>';
+    const noches = snapshot.val();
+    if (!noches) {
+        nochesContenedor.innerHTML = '<p>No hay noches disponibles.</p>';
         return;
     }
 
-    Object.entries(semanas).forEach(([semana, datos]) => {
-        const semanaDiv = document.createElement('div');
-        semanaDiv.classList.add('Contenedor', 'd-flex', 'justify-content-center', 'align-items-center');
-        semanaDiv.style.cssText = `
-            background-color: #e0e0e0;
+    // Recorre cada noche y crea sus elementos
+    for (const [noche, datos] of Object.entries(noches)) {
+        const nocheDiv = document.createElement('div');
+        nocheDiv.classList.add('Contenedor', 'd-flex', 'justify-content-center', 'align-items-center', 'pintable');
+        nocheDiv.style.cssText = `
             padding: 15px;
             border-radius: 8px;
             text-align: center;
             width: 100%;
             box-sizing: border-box;
-            height: 113.5px;
+            height: 100px;
         `;
 
         const contentTextDiv = document.createElement('div');
         contentTextDiv.classList.add('content-text');
         contentTextDiv.innerHTML = `
-            <h3 class="contEditable">${datos.titulo}</h3>
-            <p class="m-0">Días ${datos.rangoDias}</p>
+            <h4 class="contEditable">${datos.titulo}</h4>
         `;
 
-        semanaDiv.appendChild(contentTextDiv);
-        semanasContenedor.appendChild(semanaDiv);
-    });
+        const usuarioRef = database.ref(`Tecnicos/${datos.titulo}/color`);
+        const usuarioSnapshot = await usuarioRef.once('value');
+        const color = usuarioSnapshot.val();
+        if (color) {
+            nocheDiv.style.backgroundColor = `#${color}`;
+        }
+
+        nocheDiv.appendChild(contentTextDiv);
+        nochesContenedor.appendChild(nocheDiv);
+    }
+}
+
+async function generarDomingos() {
+    const mes = MesActual + 1;
+    const semanas = calcularNochesReales(AñoActual, mes);
+    const domingosRef = database.ref(`Registros/${AñoActual}/${mes}/Domingos`);
+
+    const snapshot = await domingosRef.once('value');
+    const datosExistentes = snapshot.val();
+
+    if (!datosExistentes) {
+        const registrosData = {};
+        for (let semana = 1; semana <= semanas; semana++) {
+            registrosData[`semana${semana}`] = {
+                registro1: { titulo: `Técnico` },
+                registro2: { titulo: `Técnico` },
+                registro3: { titulo: `Técnico` },
+                registro4: { titulo: `Técnico` }
+            };
+        }
+        await domingosRef.set(registrosData);
+        return true;
+    }
+    return false;
+}
+
+async function mostrarDomingos() {
+    const mes = MesActual + 1;
+    const domingosRef = database.ref(`Registros/${AñoActual}/${mes}/Domingos`);
+    const snapshot = await domingosRef.once('value');
+    const domingosContenedor = document.getElementById('Domingos');
+
+    domingosContenedor.innerHTML = '';
+    domingosContenedor.style.cssText = `
+        padding: 10px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        border: none;
+        padding-top: 0;
+    `;
+
+    const semanas = snapshot.val();
+    if (!semanas) {
+        domingosContenedor.innerHTML = '<p>No hay registros disponibles.</p>';
+        return;
+    }
+
+    for (const [_, registros] of Object.entries(semanas)) {
+        const semanaDiv = document.createElement('div');
+        semanaDiv.classList.add('d-flex', 'gap-10');
+        semanaDiv.style.gap = '10px';
+
+        let contador = 0;
+        for (const [_, datos] of Object.entries(registros)) {
+            if (contador === 2) {
+                const lineaVertical = document.createElement('div');
+                lineaVertical.classList.add('LineaVertical');
+                semanaDiv.appendChild(lineaVertical);
+            }
+
+            const registroDiv = document.createElement('div');
+            registroDiv.classList.add('Contenedor', 'pintable');
+            registroDiv.style.cssText = `
+                padding: 15px;
+                border-radius: 8px;
+                text-align: center;
+                flex: 1;
+                height: 100px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            `;
+
+            const contentTextDiv = document.createElement('div');
+            contentTextDiv.classList.add('content-text');
+            contentTextDiv.innerHTML = `
+                <h4 class="contEditable">${datos.titulo}</h4>
+            `;
+            const usuarioRef = database.ref(`Tecnicos/${datos.titulo}/color`);
+            const usuarioSnapshot = await usuarioRef.once('value');
+            const color = usuarioSnapshot.val();
+            if (color) {
+                registroDiv.style.backgroundColor = `#${color}`;
+            }
+            registroDiv.appendChild(contentTextDiv);
+            semanaDiv.appendChild(registroDiv);
+            contador++;
+        }
+
+        domingosContenedor.appendChild(semanaDiv);
+    }
+}
+
+function generarFestivos() { }
+function mostrarFestivos() { }
+
+async function mostrarRegistros() {
+    await mostrarNoches();
+    await mostrarDomingos();
+    await mostrarFestivos();
 }
 
 // Event Listeners
 document.getElementById('Mes').addEventListener('click', async () => {
-    await generarSemanas();
-    await mostrarSemanas();
+    await generarNoches();
+    await generarDomingos();
+    await mostrarRegistros();
 });
 
 document.getElementById('izqMes').addEventListener('click', () => {
     cambiarMes(-1);
-    mostrarSemanas();
+    mostrarRegistros();
 });
 
 document.getElementById('derMes').addEventListener('click', () => {
     cambiarMes(1);
-    mostrarSemanas();
+    mostrarRegistros();
 });
 
 document.getElementById('buscarMes').addEventListener('click', function () {
@@ -445,7 +558,7 @@ document.getElementById('confirmSelectMonthYear').addEventListener('click', func
         MesActual = parseInt(month) - 1;
         AñoActual = parseInt(year);
         actualizarTituloMes();
-        mostrarSemanas();
+        mostrarRegistros();
     } else {
         alert('Por favor, selecciona un mes y un año.');
     }
@@ -458,59 +571,326 @@ document.getElementById('hoyMes').addEventListener('click', function () {
     MesActual = new Date().getMonth();
     AñoActual = new Date().getFullYear();
     actualizarTituloMes();
-    mostrarSemanas();
+    mostrarRegistros();
 });
 
-document.getElementById('changeBtn').addEventListener('click', () => {
-    const save = document.getElementById('saveBtn');
-    save.classList.remove('d-none');
-    const change = document.getElementById('changeBtn');
-    change.classList.toggle('d-none');
-    editar();
-});
 
-document.getElementById('saveBtn').addEventListener('click', () => {
-    const save = document.getElementById('saveBtn');
-    save.classList.toggle('d-none');
-    const change = document.getElementById('changeBtn');
-    change.classList.remove('d-none');
-    guardar();
-});
+// Global variables for modals and technicians data
+let passwordModal;
+let alertModal;
+let techniciansList = [];
 
-function editar() {
-    const contEditable = document.querySelectorAll('.contEditable');
-    contEditable.forEach((cont) => {
-        cont.setAttribute('contenteditable', 'true');  // Hace el div editable
-        cont.style.border = '1px solid rgb(111 111 111)';  // Puedes agregar estilo para indicar que está editable
-    });
-}
+// Initialize modals and event listeners when the document loads
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize buttons
+    const changeBtn = document.getElementById('changeBtn');
+    const saveBtn = document.getElementById('saveBtn');
 
-function guardar() {
-    // Muestra el modal para ingresar la contraseña
-    var passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
-    passwordModal.show();
-    
-    // Maneja el evento de clic en el botón "Aceptar"
-    document.getElementById('submitPasswordBtn').addEventListener('click', function() {
-        var passwordInput = document.getElementById('passwordInput').value;
-        
-        // Aquí puedes verificar la contraseña, por ejemplo, con una contraseña estática (por razones de seguridad, no se recomienda hacerlo así en un entorno real).
-        var correctPassword = 'miContraseñaSegura'; // Reemplaza esto con la validación real
+    const configBtn = document.getElementById('configBtn');
+    const derMes = document.getElementById('derMes');
+    const izqMes = document.getElementById('izqMes');
+    const hoyMes = document.getElementById('hoyMes');
+    const buscarMes = document.getElementById('buscarMes');
+    const Mes = document.getElementById('Mes');
+    const showBtn = document.getElementById('showBtn');
 
-        if (passwordInput === correctPassword) {
-            // Si la contraseña es correcta, proceder con el guardado
-            var contEditable = document.querySelectorAll('.contEditable');
-            contEditable.forEach(function(cont) {
-                cont.setAttribute('contenteditable', 'false');  // Hace el div no editable
-                cont.style.border = 'none';  // Quita el borde
-            });
-            
-            // Cierra el modal
-            passwordModal.hide();
-        } else {
-            // Si la contraseña es incorrecta, mostrar un mensaje de error
-            document.getElementById('passwordError').style.display = 'block';
+    if (changeBtn) {
+        changeBtn.addEventListener('click', async () => {
+            saveBtn.classList.remove('d-none');
+            changeBtn.classList.add('d-none');
+
+            configBtn.disabled = true;
+            derMes.disabled = true;
+            izqMes.disabled = true;
+            hoyMes.disabled = true;
+            buscarMes.disabled = true;
+            Mes.style.cursor = 'not-allowed';
+            showBtn.disabled = true;
+
+            await showDropdowns();
+        });
+    }
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            saveBtn.classList.add('d-none');
+            changeBtn.classList.remove('d-none');
+
+            configBtn.disabled = false;
+            derMes.disabled = false;
+            izqMes.disabled = false;
+            hoyMes.disabled = false;
+            buscarMes.disabled = false;
+            Mes.style.cursor = 'pointer';
+            showBtn.disabled = false;
+
+            guardar();
+        });
+    }
+
+    // Initialize modals
+    passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+    alertModal = new bootstrap.Modal(document.getElementById('alertModal'));
+
+    // Set up password modal event listeners
+    const modalElement = document.getElementById('passwordModal');
+    if (modalElement) {
+        modalElement.addEventListener('hidden.bs.modal', handleModalClose);
+
+        const cancelBtn = document.getElementById('cancelPasswordBtn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => passwordModal.hide());
         }
-    });
+
+        const submitBtn = document.getElementById('submitPasswordBtn');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', handlePasswordSubmit);
+        }
+    }
+
+    // Load technicians data
+    await loadTechnicians();
+});
+
+async function loadTechnicians() {
+    try {
+        const technicosRef = database.ref('Tecnicos');
+        const snapshot = await technicosRef.once('value');
+        const tecnicos = snapshot.val();
+
+        techniciansList = Object.keys(tecnicos).map(key => ({
+            id: key,
+            nombre: tecnicos[key].nombre
+        }));
+    } catch (error) {
+        console.error('Error loading technicians:', error);
+        techniciansList = [];
+    }
 }
 
+function getTechnicianIdByName(name) {
+    const technician = techniciansList.find(tech => tech.nombre === name);
+    return technician ? technician.id : 'Técnico';
+}
+
+function getTechnicianNameById(id) {
+    const technician = techniciansList.find(tech => tech.id === id);
+    return technician ? technician.nombre : 'Técnico';
+}
+
+// ... (código anterior sin cambios hasta createDropdown)
+
+function createDropdown(currentId) {
+    const select = document.createElement('select');
+    select.className = 'form-select technician-select';
+
+    // Add default option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = 'Técnico';
+    defaultOption.textContent = 'Técnico';
+    select.appendChild(defaultOption);
+
+    // Add technician options
+    techniciansList.forEach(tech => {
+        const option = document.createElement('option');
+        option.value = tech.id;
+        option.textContent = tech.nombre;
+        if (tech.id === currentId || tech.nombre === currentId) { // Comprueba tanto ID como nombre
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+
+    // Seleccionar "Técnico" solo si no hay un valor actual válido
+    if (currentId === 'Técnico' || (!currentId && !select.value)) {
+        defaultOption.selected = true;
+    }
+
+    return select;
+}
+
+async function showDropdowns() {
+    const mes = MesActual + 1;
+
+    try {
+        // Obtener datos actuales
+        const nochesSnapshot = await database.ref(`Registros/${AñoActual}/${mes}/Noches`).once('value');
+        const nochesData = nochesSnapshot.val() || {};
+
+        const domingosSnapshot = await database.ref(`Registros/${AñoActual}/${mes}/Domingos`).once('value');
+        const domingosData = domingosSnapshot.val() || {};
+
+        // Procesar contenedores editables
+        const contEditable = document.querySelectorAll('.contEditable');
+        contEditable.forEach((cont) => {
+            let currentValue;
+
+            // Determinar el valor actual basado en la ubicación del contenedor
+            if (cont.closest('#Noches')) {
+                const index = Array.from(cont.closest('#Noches').querySelectorAll('.contEditable')).indexOf(cont);
+                const nocheKey = `Noche${index + 1}`;
+                currentValue = nochesData[nocheKey]?.titulo || 'Técnico';
+            } else if (cont.closest('#Domingos')) {
+                const containers = Array.from(cont.closest('#Domingos').querySelectorAll('.contEditable'));
+                const index = containers.indexOf(cont);
+                const semana = `semana${Math.floor(index / 4) + 1}`;
+                const registro = `registro${(index % 4) + 1}`;
+                currentValue = domingosData[semana]?.[registro]?.titulo || 'Técnico';
+            }
+
+            const dropdown = createDropdown(currentValue);
+
+            // Store original content for reset
+            cont.dataset.originalContent = currentValue;
+
+            // Clear and append dropdown
+            cont.textContent = '';
+            cont.appendChild(dropdown);
+        });
+    } catch (error) {
+        console.error('Error loading current data:', error);
+        showAlert('Error', 'Error al cargar los datos actuales.', 'danger');
+    }
+}
+
+async function resetDropdowns() {
+    const mes = MesActual + 1;
+
+    try {
+        // Obtener datos actuales de Firebase
+        const nochesSnapshot = await database.ref(`Registros/${AñoActual}/${mes}/Noches`).once('value');
+        const nochesData = nochesSnapshot.val() || {};
+
+        const domingosSnapshot = await database.ref(`Registros/${AñoActual}/${mes}/Domingos`).once('value');
+        const domingosData = domingosSnapshot.val() || {};
+
+        const contEditable = document.querySelectorAll('.contEditable');
+        contEditable.forEach((cont) => {
+            let currentValue;
+
+            // Determinar el valor actual basado en la ubicación del contenedor
+            if (cont.closest('#Noches')) {
+                const index = Array.from(cont.closest('#Noches').querySelectorAll('.contEditable')).indexOf(cont);
+                const nocheKey = `Noche${index + 1}`;
+                currentValue = nochesData[nocheKey]?.titulo;
+            } else if (cont.closest('#Domingos')) {
+                const containers = Array.from(cont.closest('#Domingos').querySelectorAll('.contEditable'));
+                const index = containers.indexOf(cont);
+                const semana = `semana${Math.floor(index / 4) + 1}`;
+                const registro = `registro${(index % 4) + 1}`;
+                currentValue = domingosData[semana]?.[registro]?.titulo;
+            }
+
+            // Mostrar la key directamente
+            cont.textContent = currentValue || 'Tecnico';
+        });
+    } catch (error) {
+        console.error('Error resetting dropdowns:', error);
+        // En caso de error, mostrar "Tecnico" como fallback
+        contEditable.forEach(cont => {
+            cont.textContent = 'Tecnico';
+        });
+    }
+}
+
+function handleModalClose() {
+    resetDropdowns();
+    document.getElementById('saveBtn').classList.add('d-none');
+    document.getElementById('changeBtn').classList.remove('d-none');
+}
+
+async function guardar() {
+    // Reset password error and input
+    const passwordError = document.getElementById('passwordError');
+    const passwordInput = document.getElementById('passwordInput');
+
+    if (passwordError) passwordError.style.display = 'none';
+    if (passwordInput) passwordInput.value = '';
+
+    // Show password modal
+    if (passwordModal) passwordModal.show();
+}
+
+async function handlePasswordSubmit() {
+    const passwordInput = document.getElementById('passwordInput');
+    if (!passwordInput) return;
+
+    const correctPassword = '1';
+
+    if (passwordInput.value === correctPassword) {
+        try {
+            const mes = MesActual + 1;
+
+            // Save Noches
+            const nochesRef = database.ref(`Registros/${AñoActual}/${mes}/Noches`);
+            const nochesSnapshot = await nochesRef.once('value');
+            const nochesData = nochesSnapshot.val();
+
+            const nochesContainers = document.querySelector('#Noches')?.querySelectorAll('.contEditable') || [];
+            nochesContainers.forEach((container, index) => {
+                const nocheKey = `Noche${index + 1}`;
+                const dropdown = container.querySelector('select');
+                if (nochesData[nocheKey] && dropdown) {
+                    nochesData[nocheKey].titulo = dropdown.value; // Ahora guarda el ID del técnico
+                }
+            });
+
+            await nochesRef.set(nochesData);
+
+            // Save Domingos
+            const domingosRef = database.ref(`Registros/${AñoActual}/${mes}/Domingos`);
+            const domingosSnapshot = await domingosRef.once('value');
+            const domingosData = domingosSnapshot.val();
+
+            const domingosContainers = document.querySelector('#Domingos')?.querySelectorAll('.contEditable') || [];
+            let registroIndex = 0;
+
+            domingosContainers.forEach((container) => {
+                const semana = `semana${Math.floor(registroIndex / 4) + 1}`;
+                const registro = `registro${(registroIndex % 4) + 1}`;
+                const dropdown = container.querySelector('select');
+
+                if (!domingosData[semana]) {
+                    domingosData[semana] = {};
+                }
+
+                domingosData[semana][registro] = {
+                    titulo: dropdown ? dropdown.value : 'Técnico' // Usa "Tecnico" como valor por defecto
+                };
+
+                registroIndex++;
+            });
+
+            await domingosRef.set(domingosData);
+
+            await resetDropdowns();
+            passwordModal.hide();
+            await mostrarRegistros();
+            showAlert('Éxito', 'Datos guardados exitosamente.', 'success');
+        } catch (error) {
+            console.error('Error al guardar:', error);
+            showAlert('Error', 'Error al guardar los datos.', 'danger');
+        }
+    } else {
+        const passwordError = document.getElementById('passwordError');
+        if (passwordError) passwordError.style.display = 'block';
+    }
+}
+
+function showAlert(title, message, type) {
+    const alertModalElement = document.getElementById('alertModal');
+    if (!alertModalElement) return;
+
+    const titleElement = document.getElementById('alertModalLabel');
+    const bodyElement = alertModalElement.querySelector('.modal-body');
+    const headerElement = alertModalElement.querySelector('.modal-header');
+
+    if (titleElement) titleElement.textContent = title;
+    if (bodyElement) bodyElement.textContent = message;
+    if (headerElement) {
+        headerElement.classList.remove('bg-success', 'bg-danger');
+        headerElement.classList.add(`bg-${type}`);
+    }
+
+    alertModal.show();
+}

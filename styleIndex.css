@@ -58,7 +58,6 @@ input[type="color"]:disabled {
 }
 
 .Contenedor {
-    background-color: #fff;
     border: 1px solid #dee2e6;
     border-radius: 0.25rem;
 }
@@ -76,3 +75,39 @@ input[type="color"]:disabled {
     border-right: none;
     border-radius: 0.25rem 0 0 0.25rem;
 }
+
+.LineaVertical {
+    border-left: 2px solid #6c757d;
+    border-right: 2px solid #6c757d;
+    padding: 0;
+}
+
+.LineaHorizontal {
+    border-top: 2px solid #6c757d;
+    border-bottom: 2px solid #6c757d;
+    padding: 0;
+}
+
+.Bloque {
+    justify-content: center;
+    align-items: center;
+    display: flex;
+}
+
+.TituloContenedor {
+    width: 25%;
+    padding: 0.25rem;
+    text-align: center;
+    font-size: large;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+
+.Titular {
+    background-color: #ffffff;
+}
+
+.Apoyo{
+    background-color: #ffffff;
+}
+
