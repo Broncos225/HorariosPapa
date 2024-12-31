@@ -296,6 +296,7 @@ document.getElementById('showBtn').addEventListener('click', () => {
     const hideBtn = document.getElementById('showBtn');
     hideBtn.classList.toggle('d-none');
 });
+
 let MesActual = new Date().getMonth();
 let AñoActual = new Date().getFullYear();
 
@@ -518,8 +519,154 @@ async function mostrarDomingos() {
     }
 }
 
-function generarFestivos() { }
-function mostrarFestivos() { }
+const festivosPorMes = {
+    1: [1, 6],
+    2: [],
+    3: [24],
+    4: [17, 18],
+    5: [1],
+    6: [2, 23, 30],
+    7: [20],
+    8: [7, 18],
+    9: [],
+    10: [13],
+    11: [3, 17],
+    12: [8, 25],
+};
+
+
+async function generarFestivos(festivosPorMes) {
+    const mes = MesActual + 1;
+    const año = AñoActual;
+    const festivosRef = database.ref(`Registros/${año}/${mes}/Festivos`);
+
+    const snapshot = await festivosRef.once('value');
+    const datosExistentes = snapshot.val();
+
+    if (!datosExistentes) {
+        const registrosData = {};
+
+        for (const mes in festivosPorMes) {
+            const diasFestivos = festivosPorMes[mes];
+
+            // Ordenar los días de manera ascendente antes de generar los registros
+            const diasOrdenados = [...diasFestivos].sort((a, b) => a - b);
+
+            registrosData[mes] = {};
+
+            diasOrdenados.forEach(dia => {
+                // Usamos padStart para asegurar que las claves se ordenen correctamente
+                const diaKey = `dia${dia.toString().padStart(2, '0')}`;
+
+                registrosData[mes][diaKey] = {
+                    fecha: `${dia}/${mes}/${año}`,
+                    registro1: { titulo: 'Técnico' },
+                    registro2: { titulo: 'Técnico' },
+                    registro3: { titulo: 'Técnico' },
+                    registro4: { titulo: 'Técnico' }
+                };
+            });
+        }
+
+        await festivosRef.set(registrosData);
+        return true;
+    }
+    return false;
+}
+
+
+async function mostrarFestivos() {
+    const mes = MesActual + 1;
+    const festivosRef = database.ref(`Registros/${AñoActual}/${mes}/Festivos`);
+    const snapshot = await festivosRef.once('value');
+    const festivosContenedor = document.getElementById('Festivos');
+
+    festivosContenedor.innerHTML = '';
+    festivosContenedor.style.cssText = `
+        padding: 10px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        border: none;
+        padding-top: 0;
+    `;
+
+    const festivos = snapshot.val();
+    if (!festivos || !festivos[mes]) {
+        festivosContenedor.innerHTML = '<p>No hay festivos registrados.</p>';
+        return;
+    }
+
+    // Para cada día festivo en el mes
+    for (const [diaKey, registros] of Object.entries(festivos[mes])) {
+        const festivoDiv = document.createElement('div');
+        festivoDiv.classList.add('d-flex', 'gap-10');
+        festivoDiv.style.gap = '10px';
+
+        // Añadir la fecha del festivo
+        const fechaDiv = document.createElement('div');
+        fechaDiv.style.cssText = `
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+            margin-bottom: 5px;
+            justify-content: center;
+        `;
+        fechaDiv.textContent = registros.fecha;
+        festivosContenedor.appendChild(fechaDiv);
+
+        let contador = 0;
+        // Iterar sobre los 4 registros del día festivo
+        for (let i = 1; i <= 4; i++) {
+            if (contador === 2) {
+                const lineaVertical = document.createElement('div');
+                lineaVertical.classList.add('LineaVertical');
+                festivoDiv.appendChild(lineaVertical);
+            }
+
+            const registro = registros[`registro${i}`];
+            const registroDiv = document.createElement('div');
+            registroDiv.classList.add('Contenedor', 'pintable');
+            registroDiv.style.cssText = `
+                padding: 15px;
+                border-radius: 8px;
+                text-align: center;
+                flex: 1;
+                height: 100px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            `;
+
+            const contentTextDiv = document.createElement('div');
+            contentTextDiv.classList.add('content-text');
+            contentTextDiv.innerHTML = `
+                <h4 class="contEditable">${registro.titulo}</h4>
+            `;
+
+            // Obtener y aplicar el color del técnico
+            const usuarioRef = database.ref(`Tecnicos/${registro.titulo}/color`);
+            const usuarioSnapshot = await usuarioRef.once('value');
+            const color = usuarioSnapshot.val();
+            if (color) {
+                registroDiv.style.backgroundColor = `#${color}`;
+            }
+
+            registroDiv.appendChild(contentTextDiv);
+            festivoDiv.appendChild(registroDiv);
+            contador++;
+        }
+
+        festivosContenedor.appendChild(festivoDiv);
+    }
+}
+
+async function generarRegistros() {
+    await generarNoches();
+    await generarDomingos();
+    await generarFestivos(festivosPorMes);
+}
 
 async function mostrarRegistros() {
     await mostrarNoches();
@@ -529,8 +676,7 @@ async function mostrarRegistros() {
 
 // Event Listeners
 document.getElementById('Mes').addEventListener('click', async () => {
-    await generarNoches();
-    await generarDomingos();
+    await generarRegistros();
     await mostrarRegistros();
 });
 
@@ -720,6 +866,9 @@ async function showDropdowns() {
         const domingosSnapshot = await database.ref(`Registros/${AñoActual}/${mes}/Domingos`).once('value');
         const domingosData = domingosSnapshot.val() || {};
 
+        const festivosSnapshot = await database.ref(`Registros/${AñoActual}/${mes}/Festivos/${mes}`).once('value');
+        const festivosData = festivosSnapshot.val() || {};
+
         // Procesar contenedores editables
         const contEditable = document.querySelectorAll('.contEditable');
         contEditable.forEach((cont) => {
@@ -736,6 +885,13 @@ async function showDropdowns() {
                 const semana = `semana${Math.floor(index / 4) + 1}`;
                 const registro = `registro${(index % 4) + 1}`;
                 currentValue = domingosData[semana]?.[registro]?.titulo || 'Técnico';
+            } else if (cont.closest('#Festivos')) {
+                const containers = Array.from(cont.closest('#Festivos').querySelectorAll('.contEditable'));
+                const index = containers.indexOf(cont);
+                const diaContainer = cont.closest('.d-flex').previousElementSibling;
+                const diaKey = diaContainer ? `dia${diaContainer.textContent.split('/')[0].trim().padStart(2, '0')}` : null;
+                const registro = `registro${(index % 4) + 1}`;
+                currentValue = diaKey ? festivosData[diaKey]?.[registro]?.titulo || 'Técnico' : 'Técnico';
             }
 
             const dropdown = createDropdown(currentValue);
@@ -764,6 +920,9 @@ async function resetDropdowns() {
         const domingosSnapshot = await database.ref(`Registros/${AñoActual}/${mes}/Domingos`).once('value');
         const domingosData = domingosSnapshot.val() || {};
 
+        const festivosSnapshot = await database.ref(`Registros/${AñoActual}/${mes}/Festivos/${mes}`).once('value');
+        const festivosData = festivosSnapshot.val() || {};
+
         const contEditable = document.querySelectorAll('.contEditable');
         contEditable.forEach((cont) => {
             let currentValue;
@@ -779,6 +938,13 @@ async function resetDropdowns() {
                 const semana = `semana${Math.floor(index / 4) + 1}`;
                 const registro = `registro${(index % 4) + 1}`;
                 currentValue = domingosData[semana]?.[registro]?.titulo;
+            } else if (cont.closest('#Festivos')) {
+                const containers = Array.from(cont.closest('#Festivos').querySelectorAll('.contEditable'));
+                const index = containers.indexOf(cont);
+                const diaContainer = cont.closest('.d-flex').previousElementSibling;
+                const diaKey = diaContainer ? `dia${diaContainer.textContent.split('/')[0].trim().padStart(2, '0')}` : null;
+                const registro = `registro${(index % 4) + 1}`;
+                currentValue = diaKey ? festivosData[diaKey]?.[registro]?.titulo : null;
             }
 
             // Mostrar la key directamente
@@ -800,82 +966,146 @@ function handleModalClose() {
 }
 
 async function guardar() {
-    // Reset password error and input
-    const passwordError = document.getElementById('passwordError');
-    const passwordInput = document.getElementById('passwordInput');
+    try {
+        // Reset password error and input
+        const passwordError = document.getElementById('passwordError');
+        const passwordInput = document.getElementById('passwordInput');
 
-    if (passwordError) passwordError.style.display = 'none';
-    if (passwordInput) passwordInput.value = '';
+        // Verificar que la contraseña existe en Firebase
+        const passwordRef = database.ref('Configuracion/password');
+        const passwordSnapshot = await passwordRef.once('value');
+        const hasPassword = passwordSnapshot.exists();
 
-    // Show password modal
-    if (passwordModal) passwordModal.show();
+        if (!hasPassword) {
+            console.error('No se encontró la contraseña en la base de datos');
+            showAlert('Error', 'Error al verificar la contraseña.', 'danger');
+            return;
+        }
+
+        if (passwordError) passwordError.style.display = 'none';
+        if (passwordInput) passwordInput.value = '';
+
+        // Show password modal
+        if (passwordModal) passwordModal.show();
+    } catch (error) {
+        console.error('Error al verificar la configuración de la contraseña:', error);
+        showAlert('Error', 'Error al acceder a la configuración.', 'danger');
+    }
 }
 
 async function handlePasswordSubmit() {
     const passwordInput = document.getElementById('passwordInput');
     if (!passwordInput) return;
 
-    const correctPassword = '1';
+    try {
+        // Obtener la contraseña de Firebase
+        const passwordRef = database.ref('Configuracion/password');
+        const passwordSnapshot = await passwordRef.once('value');
+        const correctPassword = passwordSnapshot.val();
 
-    if (passwordInput.value === correctPassword) {
-        try {
-            const mes = MesActual + 1;
-
-            // Save Noches
-            const nochesRef = database.ref(`Registros/${AñoActual}/${mes}/Noches`);
-            const nochesSnapshot = await nochesRef.once('value');
-            const nochesData = nochesSnapshot.val();
-
-            const nochesContainers = document.querySelector('#Noches')?.querySelectorAll('.contEditable') || [];
-            nochesContainers.forEach((container, index) => {
-                const nocheKey = `Noche${index + 1}`;
-                const dropdown = container.querySelector('select');
-                if (nochesData[nocheKey] && dropdown) {
-                    nochesData[nocheKey].titulo = dropdown.value; // Ahora guarda el ID del técnico
-                }
-            });
-
-            await nochesRef.set(nochesData);
-
-            // Save Domingos
-            const domingosRef = database.ref(`Registros/${AñoActual}/${mes}/Domingos`);
-            const domingosSnapshot = await domingosRef.once('value');
-            const domingosData = domingosSnapshot.val();
-
-            const domingosContainers = document.querySelector('#Domingos')?.querySelectorAll('.contEditable') || [];
-            let registroIndex = 0;
-
-            domingosContainers.forEach((container) => {
-                const semana = `semana${Math.floor(registroIndex / 4) + 1}`;
-                const registro = `registro${(registroIndex % 4) + 1}`;
-                const dropdown = container.querySelector('select');
-
-                if (!domingosData[semana]) {
-                    domingosData[semana] = {};
-                }
-
-                domingosData[semana][registro] = {
-                    titulo: dropdown ? dropdown.value : 'Técnico' // Usa "Tecnico" como valor por defecto
-                };
-
-                registroIndex++;
-            });
-
-            await domingosRef.set(domingosData);
-
-            await resetDropdowns();
-            passwordModal.hide();
-            await mostrarRegistros();
-            showAlert('Éxito', 'Datos guardados exitosamente.', 'success');
-        } catch (error) {
-            console.error('Error al guardar:', error);
-            showAlert('Error', 'Error al guardar los datos.', 'danger');
+        if (!correctPassword) {
+            console.error('No se encontró la contraseña en la base de datos');
+            showAlert('Error', 'Error al verificar la contraseña.', 'danger');
+            return;
         }
-    } else {
-        const passwordError = document.getElementById('passwordError');
-        if (passwordError) passwordError.style.display = 'block';
+
+        if (passwordInput.value === correctPassword) {
+            try {
+                const mes = MesActual + 1;
+
+                // Save Noches
+                const nochesRef = database.ref(`Registros/${AñoActual}/${mes}/Noches`);
+                const nochesSnapshot = await nochesRef.once('value');
+                const nochesData = nochesSnapshot.val();
+
+                const nochesContainers = document.querySelector('#Noches')?.querySelectorAll('.contEditable') || [];
+                nochesContainers.forEach((container, index) => {
+                    const nocheKey = `Noche${index + 1}`;
+                    const dropdown = container.querySelector('select');
+                    if (nochesData[nocheKey] && dropdown) {
+                        nochesData[nocheKey].titulo = dropdown.value;
+                    }
+                });
+
+                await nochesRef.set(nochesData);
+
+                // Save Domingos
+                const domingosRef = database.ref(`Registros/${AñoActual}/${mes}/Domingos`);
+                const domingosSnapshot = await domingosRef.once('value');
+                const domingosData = domingosSnapshot.val();
+
+                const domingosContainers = document.querySelector('#Domingos')?.querySelectorAll('.contEditable') || [];
+                let registroIndex = 0;
+
+                domingosContainers.forEach((container) => {
+                    const semana = `semana${Math.floor(registroIndex / 4) + 1}`;
+                    const registro = `registro${(registroIndex % 4) + 1}`;
+                    const dropdown = container.querySelector('select');
+
+                    if (!domingosData[semana]) {
+                        domingosData[semana] = {};
+                    }
+
+                    domingosData[semana][registro] = {
+                        titulo: dropdown ? dropdown.value : 'Técnico'
+                    };
+
+                    registroIndex++;
+                });
+
+                await domingosRef.set(domingosData);
+
+                // Save Festivos
+                const festivosRef = database.ref(`Registros/${AñoActual}/${mes}/Festivos/${mes}`);
+                const festivosSnapshot = await festivosRef.once('value');
+                const festivosData = festivosSnapshot.val() || {};
+
+                const festivosContainers = document.querySelector('#Festivos')?.querySelectorAll('.contEditable') || [];
+                let festivoIndex = 0;
+
+                festivosContainers.forEach((container) => {
+                    const diaContainer = container.closest('.d-flex').previousElementSibling;
+                    if (diaContainer) {
+                        const dia = diaContainer.textContent.split('/')[0].trim();
+                        const diaKey = `dia${dia.padStart(2, '0')}`;
+                        const registro = `registro${(festivoIndex % 4) + 1}`;
+                        const dropdown = container.querySelector('select');
+
+                        if (!festivosData[diaKey]) {
+                            festivosData[diaKey] = {
+                                fecha: diaContainer.textContent.trim()
+                            };
+                        }
+
+                        festivosData[diaKey][registro] = {
+                            titulo: dropdown ? dropdown.value : 'Técnico'
+                        };
+
+                        festivoIndex++;
+                    }
+                });
+
+                await festivosRef.set(festivosData);
+
+                await resetDropdowns();
+                passwordModal.hide();
+                await mostrarRegistros();
+                showAlert('Éxito', 'Datos guardados exitosamente.', 'success');
+            } catch (error) {
+                console.error('Error al guardar:', error);
+                showAlert('Error', 'Error al guardar los datos.', 'danger');
+            }
+        } else {
+            const passwordError = document.getElementById('passwordError');
+            if (passwordError) passwordError.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error al obtener la contraseña:', error);
+        showAlert('Error', 'Error al verificar la contraseña.', 'danger');
     }
 }
+
+
 
 function showAlert(title, message, type) {
     const alertModalElement = document.getElementById('alertModal');
