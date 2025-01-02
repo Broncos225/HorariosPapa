@@ -42,7 +42,6 @@ input[type="color"]:disabled {
 }
 
 .encabezado {
-    background-color: #f8f9fa;
     border-bottom: 1px solid #dee2e6;
     padding: 10px;
 }
@@ -103,11 +102,4 @@ input[type="color"]:disabled {
     text-wrap: nowrap;
 }
 
-.Titular {
-    background-color: #ffffff;
-}
-
-.Apoyo{
-    background-color: #ffffff;
-}
-
+ 

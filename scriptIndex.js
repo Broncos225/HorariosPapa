@@ -14,6 +14,7 @@ window.onload = () => {
     mostrarPersonas();
     mostrarRegistros();
     actualizarTituloMes();
+    updateInputs(DEFAULT_COLORS)
 };
 
 function mostrarPersonas() {
@@ -520,7 +521,7 @@ async function mostrarDomingos() {
 }
 
 const festivosPorMes = {
-    1: [1, 6],
+    1: [6],
     2: [],
     3: [24],
     4: [17, 18],
@@ -669,9 +670,21 @@ async function generarRegistros() {
 }
 
 async function mostrarRegistros() {
-    await mostrarNoches();
-    await mostrarDomingos();
-    await mostrarFestivos();
+    try {
+        ['Noches', 'Domingos', 'Festivos'].forEach(id => {
+            const container = document.getElementById(id);
+            if (container) container.innerHTML = '';
+        });
+
+        await Promise.all([
+            mostrarNoches(),
+            mostrarDomingos(),
+            mostrarFestivos()
+        ]);
+    } catch (error) {
+        console.error('Error al mostrar registros:', error);
+        showAlert('Error', 'Error al mostrar los registros', 'error');
+    }
 }
 
 // Event Listeners
@@ -737,6 +750,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const izqMes = document.getElementById('izqMes');
     const hoyMes = document.getElementById('hoyMes');
     const buscarMes = document.getElementById('buscarMes');
+    const autoBtn = document.getElementById('autoBtn');
     const Mes = document.getElementById('Mes');
     const showBtn = document.getElementById('showBtn');
 
@@ -750,6 +764,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             izqMes.disabled = true;
             hoyMes.disabled = true;
             buscarMes.disabled = true;
+            autoBtn.disabled = true;
             Mes.style.cursor = 'not-allowed';
             showBtn.disabled = true;
 
@@ -767,6 +782,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             izqMes.disabled = false;
             hoyMes.disabled = false;
             buscarMes.disabled = false;
+            autoBtn.disabled = false;
             Mes.style.cursor = 'pointer';
             showBtn.disabled = false;
 
@@ -1123,4 +1139,233 @@ function showAlert(title, message, type) {
     }
 
     alertModal.show();
+}
+
+window.updateInputs = function (colors) {
+    Object.entries(colors).forEach(([key, value]) => {
+        const input = document.getElementById(key);
+        if (input) input.value = value;
+    });
+};
+
+window.updateElements = function (colors) {
+    Object.entries(colors).forEach(([key, value]) => {
+        document.querySelectorAll(`.${key}`).forEach(element => {
+            element.style.backgroundColor = value;
+        });
+    });
+};
+
+const DEFAULT_COLORS = {
+    colorTituloPrincipal: '#000000',
+    colorBanner1: '#f8f9fa',
+    colorBanner2: '#f8f9fa',
+    colorBarras: '#6c757d',
+    colorTituloTitular: '#ffffff',
+    colorTituloApoyo: '#ffffff',
+    colorBarrasLaterales: '#d5d5d5',
+    colorTituloSemana: '#ffffff'
+};
+
+class ColorManager {
+    constructor(database) {
+        this.database = database;
+        this.coloresRef = database.ref('Configuracion/colores/');
+        this.setupEventListeners();
+        this.initializeColors();
+    }
+
+    async initializeColors() {
+        const snapshot = await this.coloresRef.once('value');
+        const colors = snapshot.val();
+
+        if (!colors) {
+            await this.coloresRef.set(DEFAULT_COLORS);
+            window.updateElements(DEFAULT_COLORS);
+            window.updateInputs(DEFAULT_COLORS);
+        } else {
+            window.updateElements(colors);
+            window.updateInputs(colors);
+        }
+    }
+
+    async loadColors() {
+        const snapshot = await this.coloresRef.once('value');
+        const colors = snapshot.val() || DEFAULT_COLORS;
+        window.updateInputs(colors);
+        window.updateElements(colors);
+    }
+
+    async saveColors() {
+        const colors = Object.keys(DEFAULT_COLORS).reduce((acc, key) => {
+            acc[key] = document.getElementById(key).value;
+            return acc;
+        }, {});
+
+        try {
+            await this.coloresRef.set(colors);
+            window.updateElements(colors);
+            return true;
+        } catch (error) {
+            console.error('Error saving colors:', error);
+            return false;
+        }
+    }
+
+    setupEventListeners() {
+        const modal = document.getElementById('colorPickerModal');
+        const resetBtn = document.getElementById('resetButton');
+        const confirmBtn = document.getElementById('confirmButton');
+
+        modal.addEventListener('show.bs.modal', () => this.loadColors());
+        resetBtn.addEventListener('click', () => {
+            window.updateInputs(DEFAULT_COLORS);
+            this.saveColors();
+        });
+        confirmBtn.addEventListener('click', async () => {
+            if (await this.saveColors()) {
+                bootstrap.Modal.getInstance(modal).hide();
+            }
+        });
+    }
+}
+
+window.DEFAULT_COLORS = DEFAULT_COLORS;
+const colorManager = new ColorManager(database);
+window.colorManager = colorManager;
+document.addEventListener('DOMContentLoaded', () => {
+    colorManager.initializeColors();
+});
+
+document.getElementById('autoBtn').addEventListener('click', async () => {
+    try {
+        await autoAsignar();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await mostrarRegistros();
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error', 'Error al mostrar los registros', 'error');
+    }
+});
+
+function autoAsignar() {
+    const mes = MesActual + 1;
+    const nochesRef = database.ref(`Registros/${AñoActual}/${mes}/Noches`);
+    const domingosRef = database.ref(`Registros/${AñoActual}/${mes}/Domingos`);
+    const festivosRef = database.ref(`Registros/${AñoActual}/${mes}/Festivos/${mes}`);
+
+    const technicianCount = {};
+    techniciansList.forEach(tech => {
+        technicianCount[tech.id] = {
+            noches: 0,
+            domingos: 0,
+            festivos: 0,
+            consecutive: 0,
+            lastAssignment: null
+        };
+    });
+
+    const selectBestTechnician = (date, type, previousTech = null) => {
+        let availableTechs = techniciansList.filter(tech => {
+            const techStats = technicianCount[tech.id];
+
+            if (previousTech === tech.id) return false;
+
+            const totalAssignments = techStats.noches + techStats.domingos + techStats.festivos;
+            const maxAssignments = Math.ceil(30 / techniciansList.length);
+            if (totalAssignments >= maxAssignments) return false;
+
+            if (techStats.lastAssignment) {
+                const daysDiff = Math.floor((date - techStats.lastAssignment) / (1000 * 60 * 60 * 24));
+                if (daysDiff < 2) return false;
+            }
+
+            return true;
+        });
+
+        if (availableTechs.length === 0) {
+            availableTechs = techniciansList;
+        }
+
+        availableTechs.sort((a, b) => {
+            const aCount = technicianCount[a.id][type];
+            const bCount = technicianCount[b.id][type];
+            return aCount - bCount;
+        });
+
+        return availableTechs[0].id;
+    };
+
+    nochesRef.once('value', async (snapshot) => {
+        const nochesData = snapshot.val() || {};
+        const nochesKeys = Object.keys(nochesData);
+        let previousTech = null;
+
+        for (const nocheKey of nochesKeys) {
+            const date = new Date(nochesData[nocheKey].fecha);
+            const techId = selectBestTechnician(date, 'noches', previousTech);
+
+            nochesData[nocheKey].titulo = techId;
+            technicianCount[techId].noches++;
+            technicianCount[techId].lastAssignment = date;
+            previousTech = techId;
+        }
+
+        await nochesRef.set(nochesData);
+    });
+
+    domingosRef.once('value', async (snapshot) => {
+        const domingosData = snapshot.val() || {};
+        const semanasKeys = Object.keys(domingosData);
+        let previousTech = null;
+
+        for (const semanaKey of semanasKeys) {
+            const registros = domingosData[semanaKey];
+            const registrosKeys = Object.keys(registros);
+
+            for (const registroKey of registrosKeys) {
+                const date = new Date(registros[registroKey].fecha);
+                const techId = selectBestTechnician(date, 'domingos', previousTech);
+
+                registros[registroKey].titulo = techId;
+                technicianCount[techId].domingos++;
+                technicianCount[techId].lastAssignment = date;
+                previousTech = techId;
+            }
+        }
+
+        await domingosRef.set(domingosData);
+    });
+
+    festivosRef.once('value', async (snapshot) => {
+        const festivosData = snapshot.val() || {};
+        const diasKeys = Object.keys(festivosData);
+        let previousTech = null;
+
+        for (const diaKey of diasKeys) {
+            const diaData = festivosData[diaKey];
+
+            if (!diaData || !diaData.fecha) continue;
+
+            const date = new Date(diaData.fecha);
+
+            for (let i = 1; i <= 4; i++) {
+                const registroKey = `registro${i}`;
+
+                if (diaData[registroKey]) {
+                    const techId = selectBestTechnician(date, 'festivos', previousTech);
+
+                    diaData[registroKey].titulo = techId;
+
+                    technicianCount[techId].festivos++;
+                    technicianCount[techId].lastAssignment = date;
+                    previousTech = techId;
+                }
+            }
+        }
+
+        await festivosRef.set(festivosData);
+    });
+
+    showAlert('Éxito', 'Datos autogenerados exitosamente.', 'success');
 }
